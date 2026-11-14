@@ -1,10 +1,24 @@
 # Perspective Crop
 
-Straighten skewed photos of documents, receipts and whiteboards, entirely in the browser. Images are never uploaded.
+Straighten skewed photos of documents, receipts, whiteboards and screens, entirely in the browser. Images are never uploaded.
 
-- Open an image by picking a file, dragging it onto the page, or pasting from the clipboard
-- Drag four corners onto the document, then straighten
-- Export as **JPG** (adjustable quality, with live file size) or **PNG**
+**Live:** https://finyakginshabu.github.io/perspective-crop/
+
+## Features
+
+- **Open images** by choosing a file, dragging it onto the page, or pasting from the clipboard. On phones, pick from the gallery or take a photo.
+- **Place four corners** on the document. A magnifier shows full-resolution pixels around the corner you're dragging, so you can place it precisely.
+- **Straighten** with a perspective (homography) transform. Output size follows the document's proportions.
+- **Export** as **JPG** (adjustable quality, with live file size) or **PNG**.
+- **Private:** all processing happens on your device. No server, no tracking.
+- **Works on desktop and mobile**, no install and no build step.
+
+## How to use
+
+1. Open an image.
+2. Drag each corner handle onto a corner of the document.
+3. Click **Straighten** and check the result.
+4. Choose JPG or PNG, then click **Download**.
 
 ## Run locally
 
@@ -22,34 +36,32 @@ Run the unit tests (Node 18+, no dependencies):
 npm test
 ```
 
-## Deploy to GitHub Pages
+## Deployment
 
-1. Push to a GitHub repo on the `main` branch.
-2. In **Settings → Pages**, set **Source** to **GitHub Actions**.
-3. The workflow in `.github/workflows/pages.yml` runs the tests and publishes the site.
+Every push to `main` runs the tests and publishes the site to GitHub Pages via [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
-All asset paths are relative, so it works under `https://<user>.github.io/<repo>/`.
+To deploy your own copy: fork the repo, then in **Settings → Pages** set **Source** to **GitHub Actions**. All paths are relative, so it works under `https://<user>.github.io/<repo>/`.
 
 ## Project layout
 
 ```
 index.html              page markup
 src/
-  css/styles.css        styles (light/dark)
+  css/styles.css        styles (navy theme, responsive)
   js/
     main.js             UI wiring: loading, straighten, export
-    cornerEditor.js     canvas with four draggable corner handles
+    cornerEditor.js     corner handles, overlay and magnifier
     homography.js       pure math: homography + bilinear warp (no DOM)
     warp.worker.js      runs the warp off the main thread
     exporter.js         JPG/PNG encoding and download
     fit.js              aspect-exact sizing of preview canvases
 tests/                  node:test unit tests for the math
-.github/workflows/      Pages deployment
+.github/workflows/      test + GitHub Pages deployment
 ```
 
 ## How it works
 
-The four corners define a quad in the source photo. An 8×8 linear system gives the homography mapping the output rectangle onto that quad. For every output pixel the source position is looked up (inverse mapping) and sampled bilinearly, so there are no holes or jagged edges.
+The four corners define a quadrilateral in the source photo. Solving an 8×8 linear system gives the homography that maps the output rectangle onto that quadrilateral. For every output pixel, the matching source position is looked up (inverse mapping) and sampled bilinearly, so there are no holes or jagged edges. The warp runs in a Web Worker to keep the page responsive on large photos.
 
 ## License
 
