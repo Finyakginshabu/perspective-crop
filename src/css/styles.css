@@ -6,14 +6,31 @@
   --muted: #93a6c2;
   --line: #1f3d63;
   --accent: #ff7f1a;
-  --radius: 20px;      /* cards, drop zone */
-  --radius-btn: 16px;   /* buttons, selects */
+  /* Fluid radii: scale smoothly with viewport width, clamped at both ends.
+     ≈12px / 10px on phones → 20px / 16px on desktop (circular corners). */
+  --r-card: clamp(12px, 0.5rem + 1vw, 20px);
+  --r-btn: clamp(10px, 0.375rem + 0.85vw, 16px);
+  /* Squircles look less round at the same radius, so they get a multiplier
+     (set to 1.8 in the @supports block below). */
+  --corner-k: 1;
+  --radius: calc(var(--r-card) * var(--corner-k));    /* cards, drop zone */
+  --radius-btn: calc(var(--r-btn) * var(--corner-k)); /* buttons, selects */
+  --radius-inner: calc(var(--r-card) * 0.3);          /* content inside cards (previews) */
   color-scheme: dark;
 
   /* Bevel for navy surfaces (cards, secondary buttons, selects). */
-  --edge-hi: color-mix(in srgb, var(--line) 70%, #fff); /* top & bottom */
+  --edge-hi: color-mix(in srgb, var(--line) 82%, #fff); /* top & bottom */
   --edge-lo: color-mix(in srgb, var(--line) 65%, #000); /* left & right */
   --glow: inset 0 0 18px rgb(255 255 255 / .12);
+  /* Small drop shadows (stronger than usual: they sit on a dark background). */
+  --shadow-card: 0 2px 8px rgb(0 0 0 / .3);
+  --shadow-btn: 0 1px 3px rgb(0 0 0 / .35);
+}
+
+/* Squircle corners where supported (Chrome/Edge 139+); others keep circular corners. */
+@supports (corner-shape: squircle) {
+  :root { --corner-k: 1.8; }
+  .pane, .dropzone, button, select { corner-shape: squircle; }
 }
 
 * { box-sizing: border-box; }
@@ -34,11 +51,11 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 
 /* Drop zone */
 .dropzone {
-  border: 2px dashed var(--line);
+  border: 1px solid var(--line);
   border-color: var(--edge-hi) var(--edge-lo);
   border-radius: var(--radius);
   background: var(--panel);
-  box-shadow: var(--glow);
+  box-shadow: var(--glow), var(--shadow-card);
 }
 .dropzone-label {
   display: flex; flex-direction: column; gap: 6px;
@@ -46,6 +63,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
   min-height: 280px; padding: 24px; text-align: center; cursor: pointer;
 }
 .dropzone-label strong { font-size: 18px; }
+.dropzone-icon { color: var(--muted); margin-bottom: 4px; }
 .dropzone-label span { color: var(--muted); }
 .dropzone:hover { background: color-mix(in srgb, var(--panel) 92%, #fff); }
 
@@ -69,7 +87,7 @@ button, select {
 }
 button:not(.primary), select {
   border-color: var(--edge-hi) var(--edge-lo);
-  box-shadow: var(--glow);
+  box-shadow: var(--glow), var(--shadow-btn);
 }
 /* Hover only lightens the fill, so the bevel stays intact. */
 button:not(.primary):hover:not(:disabled), select:hover:not(:disabled) {
@@ -80,13 +98,21 @@ button.primary {
   border-color:
     color-mix(in srgb, var(--accent) 55%, #fff)   /* top & bottom: brighter */
     color-mix(in srgb, var(--accent) 70%, #000);  /* left & right: darker */
-  box-shadow: inset 0 0 10px rgb(255 255 255 / .4); /* inner glow */
+  box-shadow: inset 0 0 10px rgb(255 255 255 / .4), var(--shadow-btn); /* inner glow + drop shadow */
   color: #000;
   font-weight: 600;
 }
 /* Darker orange on hover, darker again while pressed (borders + glow stay). */
 button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, #000); }
 button.primary:active:not(:disabled) { background: color-mix(in srgb, var(--accent) 76%, #000); }
+/* Disabled: flat dark orange — no glow, no bevel, no fade. */
+button.primary:disabled {
+  opacity: 1;
+  background: #7f4e2d;
+  border-color: #7f4e2d;
+  box-shadow: none;
+  color: rgb(0 0 0 / .6);
+}
 button { transition: background-color .12s, border-color .12s; }
 /* Keyboard focus ring sits clear of the (same-coloured) button. */
 button:focus-visible, select:focus-visible { outline-offset: 3px; }
@@ -113,7 +139,7 @@ button:disabled { opacity: .5; cursor: default; }
 .pane {
   background: var(--panel); border: 1px solid var(--line);
   border-color: var(--edge-hi) var(--edge-lo);
-  box-shadow: var(--glow);
+  box-shadow: var(--glow), var(--shadow-card);
   border-radius: var(--radius); padding: 12px;
   display: flex; flex-direction: column; gap: 10px;
 }
@@ -134,9 +160,11 @@ button:disabled { opacity: .5; cursor: default; }
   padding: 8px;       /* room for handles drawn past the image edge */
 }
 /* Page can still scroll/zoom over the image; JS blocks scrolling only while a handle is held. */
-.corner-overlay { position: absolute; z-index: 1; touch-action: pan-x pan-y pinch-zoom; }
+/* max-width: none — the overlay is intentionally wider than the image (handles
+   draw past the edges); the generic canvas guard below must not squeeze it. */
+.corner-overlay { position: absolute; z-index: 1; max-width: none; border-radius: 0; touch-action: pan-x pan-y pinch-zoom; }
 /* Preview canvases are sized in JS (fit.js) to keep their exact aspect ratio. */
-canvas { display: block; flex: none; max-width: 100%; border-radius: 4px; } /* max-width: guard before first fit */
+canvas { display: block; flex: none; max-width: 100%; border-radius: var(--radius-inner); } /* max-width: guard before first fit */
 #result-canvas {
   background: repeating-conic-gradient(#8882 0 25%, transparent 0 50%) 0 0 / 16px 16px;
 }
@@ -196,7 +224,6 @@ canvas { display: block; flex: none; max-width: 100%; border-radius: 4px; } /* m
 
 /* Phones. */
 @media (max-width: 600px) {
-  :root { --radius: 16px; --radius-btn: 12px; }
   .topbar { padding: 18px 12px 0; }
   .topbar h1 { font-size: 22px; }
   .tagline { font-size: 14px; }
