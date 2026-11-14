@@ -1,0 +1,212 @@
+/* Navy theme built around the #001733 background. */
+:root {
+  --bg: #001733;
+  --panel: #001C40;
+  --fg: #e8eef7;
+  --muted: #93a6c2;
+  --line: #1f3d63;
+  --accent: #ff7f1a;
+  --radius: 20px;      /* cards, drop zone */
+  --radius-btn: 16px;   /* buttons, selects */
+  color-scheme: dark;
+
+  /* Bevel for navy surfaces (cards, secondary buttons, selects). */
+  --edge-hi: color-mix(in srgb, var(--line) 70%, #fff); /* top & bottom */
+  --edge-lo: color-mix(in srgb, var(--line) 65%, #000); /* left & right */
+  --glow: inset 0 0 18px rgb(255 255 255 / .12);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.topbar { padding: 28px 16px 8px; max-width: 1200px; margin: 0 auto; }
+.topbar h1 { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -.02em; }
+.tagline { margin: 4px 0 0; font-size: 16px; color: var(--muted); }
+
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+
+/* Drop zone */
+.dropzone {
+  border: 2px dashed var(--line);
+  border-color: var(--edge-hi) var(--edge-lo);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--glow);
+}
+.dropzone-label {
+  display: flex; flex-direction: column; gap: 6px;
+  align-items: center; justify-content: center;
+  min-height: 280px; padding: 24px; text-align: center; cursor: pointer;
+}
+.dropzone-label strong { font-size: 18px; }
+.dropzone-label span { color: var(--muted); }
+.dropzone:hover { background: color-mix(in srgb, var(--panel) 92%, #fff); }
+
+body.dragging .drop-overlay { display: flex; }
+.drop-overlay {
+  display: none; position: fixed; inset: 0; z-index: 10;
+  align-items: center; justify-content: center;
+  background: rgb(0 10 24 / .88); color: #fff; font-size: 24px; font-weight: 600;
+  outline: 3px dashed rgb(255 255 255 / .35); outline-offset: -16px;
+  pointer-events: none;
+}
+
+/* Editor */
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.toolbar .primary { margin-left: auto; }
+
+button, select {
+  font: inherit; color: inherit;
+  padding: 7px 14px; border: 1px solid var(--line); border-radius: var(--radius-btn);
+  background: var(--panel); cursor: pointer;
+}
+button:not(.primary), select {
+  border-color: var(--edge-hi) var(--edge-lo);
+  box-shadow: var(--glow);
+}
+/* Hover only lightens the fill, so the bevel stays intact. */
+button:not(.primary):hover:not(:disabled), select:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--panel) 88%, #fff);
+}
+button.primary {
+  background: var(--accent);
+  border-color:
+    color-mix(in srgb, var(--accent) 55%, #fff)   /* top & bottom: brighter */
+    color-mix(in srgb, var(--accent) 70%, #000);  /* left & right: darker */
+  box-shadow: inset 0 0 10px rgb(255 255 255 / .4); /* inner glow */
+  color: #000;
+  font-weight: 600;
+}
+/* Darker orange on hover, darker again while pressed (borders + glow stay). */
+button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, #000); }
+button.primary:active:not(:disabled) { background: color-mix(in srgb, var(--accent) 76%, #000); }
+button { transition: background-color .12s, border-color .12s; }
+/* Keyboard focus ring sits clear of the (same-coloured) button. */
+button:focus-visible, select:focus-visible { outline-offset: 3px; }
+/* Neutral focus ring on navy controls; orange is reserved for primary buttons. */
+button:not(.primary):focus-visible {
+  outline-color: color-mix(in srgb, var(--fg) 70%, transparent);
+}
+/* Dropdown: no outer ring; focus shows as a brighter border instead. */
+select:focus, select:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--line) 40%, #fff);
+}
+/* 44px minimum tap target on touch devices. */
+@media (pointer: coarse) {
+  button, select { min-height: 44px; }
+}
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* minmax(0, …) stops a large image from widening the column past the screen. */
+.panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+@media (max-width: 800px) { .panes { grid-template-columns: minmax(0, 1fr); } }
+
+.pane {
+  background: var(--panel); border: 1px solid var(--line);
+  border-color: var(--edge-hi) var(--edge-lo);
+  box-shadow: var(--glow);
+  border-radius: var(--radius); padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.loupe {
+  position: fixed; z-index: 20;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 4px rgb(0 0 0 / .35), 0 4px 14px rgb(0 0 0 / .45);
+}
+.pane h2 { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+/* Fixed-height stage: the pane never resizes when an image loads or a result appears.
+   The canvas keeps its aspect ratio and fits inside (replaced-element sizing). */
+.stage {
+  height: clamp(280px, 62vh, 680px); /* same in both cards */
+  display: flex; align-items: center; justify-content: center;
+  position: relative; /* anchor for the corner overlay */
+  padding: 8px;       /* room for handles drawn past the image edge */
+}
+/* Page can still scroll/zoom over the image; JS blocks scrolling only while a handle is held. */
+.corner-overlay { position: absolute; z-index: 1; touch-action: pan-x pan-y pinch-zoom; }
+/* Preview canvases are sized in JS (fit.js) to keep their exact aspect ratio. */
+canvas { display: block; flex: none; max-width: 100%; border-radius: 4px; } /* max-width: guard before first fit */
+#result-canvas {
+  background: repeating-conic-gradient(#8882 0 25%, transparent 0 50%) 0 0 / 16px 16px;
+}
+.empty { margin: 0; text-align: center; color: var(--muted); }
+
+/* Export bar: fixed columns so switching JPG/PNG or file size never shifts it. */
+.export {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 13ch auto;
+  gap: 12px; align-items: center;
+  padding-top: 10px; border-top: 1px solid var(--line);
+}
+.export label { display: flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
+/* JPG ⇄ PNG toggle: fixed width so the label swap doesn't shift the bar. */
+.format-toggle {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-width: 5.5em; font-weight: 600;
+}
+.format-toggle svg { color: var(--muted); }
+.format-toggle:hover svg { color: var(--fg); }
+.export .quality input[type="range"] { flex: 1; min-width: 60px; accent-color: var(--accent); }
+.export .quality.is-off { visibility: hidden; }
+.export output { width: 3ch; text-align: right; color: var(--fg); font-variant-numeric: tabular-nums; }
+.info { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (max-width: 480px) {
+  .export { grid-template-columns: auto minmax(0, 1fr); }
+  .export .info { grid-column: 1; }
+  .export .primary { grid-column: 2; justify-self: end; }
+}
+
+/* Sits at the bottom of the left card, level with the export bar on the right. */
+.status {
+  margin: auto 0 0; padding-top: 10px;
+  border-top: 1px solid var(--line);
+  min-height: calc(1.5em + 26px); /* = export bar: control height + padding, so dividers align */
+  display: flex; align-items: center;
+  color: var(--muted);
+}
+.drop-status { color: #e5484d; font-style: normal; min-height: 1.5em; }
+
+/* ---------- Responsive ---------- */
+
+/* Copy that depends on input type / width. */
+.for-touch, .narrow-only { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .for-pointer { display: none; }
+  .for-touch { display: inline; }
+}
+
+/* Stacked layout (tablet portrait and phones). */
+@media (max-width: 800px) {
+  /* Stage hugs the image (no empty bands); fit.js caps it at max-height. */
+  .stage { height: auto; min-height: 140px; max-height: 65vh; max-height: 65svh; }
+  .status { min-height: 0; } /* no export bar beside it to align with */
+}
+
+/* Phones. */
+@media (max-width: 600px) {
+  :root { --radius: 16px; --radius-btn: 12px; }
+  .topbar { padding: 18px 12px 0; }
+  .topbar h1 { font-size: 22px; }
+  .tagline { font-size: 14px; }
+  main { padding: 12px; }
+  .pane { padding: 10px; }
+  .dropzone-label { min-height: 220px; padding: 20px 16px; }
+
+  /* Two secondary buttons side by side, Straighten full-width below. */
+  .toolbar { display: grid; grid-template-columns: 1fr 1fr; }
+  .toolbar .primary { grid-column: 1 / -1; margin-left: 0; }
+  .wide-only { display: none; }
+  .narrow-only { display: inline; }
+}

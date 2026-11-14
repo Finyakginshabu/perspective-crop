@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Straighten skewed document photos in your browser. Images never leave your device.">
+  <title>Perspective Crop</title>
+  <link rel="stylesheet" href="src/css/styles.css">
+  <script type="module" src="src/js/main.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Perspective Crop</h1>
+    <p class="tagline">Straighten document photos. Everything stays in your browser.</p>
+  </header>
+
+  <main>
+    <!-- Shown until an image is loaded -->
+    <section id="dropzone" class="dropzone">
+      <label for="file-input" class="dropzone-label">
+        <strong class="for-pointer">Drop an image here</strong>
+        <span class="for-pointer">or click to choose a file · you can also paste from the clipboard</span>
+        <strong class="for-touch">Tap to choose a photo</strong>
+        <span class="for-touch">from your gallery, or take one with the camera</span>
+        <em id="drop-status" class="drop-status" role="status" aria-live="polite"></em>
+      </label>
+    </section>
+    <input id="file-input" type="file" accept="image/*" hidden>
+
+    <section id="editor" class="editor" hidden>
+      <div class="toolbar">
+        <button id="new-image" type="button"><span class="wide-only">Choose another</span><span class="narrow-only">New</span> image</button>
+        <button id="reset" type="button">Reset corners</button>
+        <button id="straighten" type="button" class="primary">Straighten</button>
+      </div>
+
+      <div class="panes">
+        <div class="pane">
+          <h2>1. Place the corners</h2>
+          <div class="stage">
+            <canvas id="source-canvas"></canvas>
+          </div>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="pane">
+          <h2>2. Result</h2>
+          <div class="stage">
+            <p id="result-empty" class="empty">Click <b>Straighten</b> to preview.</p>
+            <canvas id="result-canvas" hidden></canvas>
+          </div>
+
+          <div class="export">
+            <label>Format
+              <!-- Click to toggle JPG ⇄ PNG; current format is in `value`. -->
+              <button id="format" type="button" class="format-toggle" value="jpeg"
+                      title="Click to switch format">
+                <span class="format-label">JPG</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>
+                </svg>
+              </button>
+            </label>
+            <label id="quality-row" class="quality">Quality
+              <input id="quality" type="range" min="10" max="100" value="92">
+              <output id="quality-value">92</output>
+            </label>
+            <span id="info" class="info"></span>
+            <button id="download" type="button" class="primary" disabled>Download</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="drop-overlay" aria-hidden="true">Drop image to open</div>
+</body>
+</html>
