@@ -7,10 +7,13 @@
  *   in full even at the image edge, while corners stay clamped to the image.
  * - While a corner is dragged, a magnifier (fixed-position canvas) shows the
  *   full-resolution pixels around it, anywhere in the window.
+ * - With `magnet` on, a dragged corner snaps to a corner feature in the photo
+ *   (e.g. the paper's corner) when one is within SNAP_PX of the pointer.
  *
  * Corner coordinates are kept in *image* pixels.
  */
 import { fitCanvas } from './fit.js';
+import { cornerStrength, findCorner } from './snap.js';
 
 const MAX_PREVIEW = 1600;
 const HANDLE_PX = 12; // handle radius (CSS px)
@@ -19,6 +22,8 @@ const LOUPE_R = 48; // magnifier radius (CSS px)
 const LOUPE_GAP = 20; // gap between handle and magnifier (CSS px)
 const LOUPE_ZOOM = 3; // magnification relative to the on-screen preview
 const LOUPE_PAD = 6; // keep this far from the window edges (CSS px)
+const SNAP_PX = 6; // magnet reach from the pointer (CSS px)
+const SNAP_PX_TOUCH = 12; // fingers are less precise
 
 export class CornerEditor {
   /** @param {HTMLCanvasElement} canvas image canvas; its parent must be positioned */
@@ -31,6 +36,9 @@ export class CornerEditor {
     this.active = -1;
     this.onChange = () => {};
     this._raf = 0;
+    this._magnet = true;
+    this._snap = null; // corner-strength map of the preview, built on demand
+    this._snapTimer = 0;
 
     this.overlay = document.createElement('canvas');
     this.overlay.className = 'corner-overlay';
@@ -72,7 +80,45 @@ export class CornerEditor {
     this.canvas.width = Math.round(bitmap.width * this.scale);
     this.canvas.height = Math.round(bitmap.height * this.scale);
     this.ctx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height);
+    this._snap = null;
+    this._prepareSnap();
     this.reset();
+  }
+
+  /** Whether dragged corners snap to corners in the photo. */
+  get magnet() {
+    return this._magnet;
+  }
+
+  set magnet(on) {
+    this._magnet = !!on;
+    if (this._magnet) this._prepareSnap();
+  }
+
+  /** Build the snap map shortly after the image shows, so the first drag doesn't stall. */
+  _prepareSnap() {
+    clearTimeout(this._snapTimer);
+    if (this._magnet && this.bitmap && !this._snap) {
+      this._snapTimer = setTimeout(() => this._ensureSnap(), 300);
+    }
+  }
+
+  _ensureSnap() {
+    if (!this._snap && this.bitmap) {
+      const { width: w, height: h } = this.canvas;
+      this._snap = cornerStrength(this.ctx.getImageData(0, 0, w, h).data, w, h);
+    }
+    return this._snap;
+  }
+
+  /** Snapped position (image px) for a pointer at (x, y), or null if nothing is in reach. */
+  _snapPoint(x, y, pointerType) {
+    if (!this._magnet || !this._ensureSnap()) return null;
+    const k = this.scale; // preview px per image px
+    const cssPerPreview = this.canvas.clientWidth / this.canvas.width;
+    const reach = (pointerType === 'touch' ? SNAP_PX_TOUCH : SNAP_PX) / cssPerPreview;
+    const hit = findCorner(this._snap, x * k, y * k, reach);
+    return hit && [hit[0] / k, hit[1] / k];
   }
 
   /** Place corners 8% in from each edge. */
@@ -202,13 +248,14 @@ export class CornerEditor {
     ctx.moveTo(...map(corners[(this.active + 3) % 4]));
     ctx.lineTo(R, R);
     ctx.lineTo(...map(corners[(this.active + 1) % 4]));
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2; // same as the frame on the overlay
     ctx.strokeStyle = accent;
     ctx.stroke();
 
     // Crosshair (white with dark outline so it shows on any background).
+    // The white stroke matches the 3px loupe ring in styles.css.
     const arm = 8;
-    for (const [w, color] of [[3, 'rgba(0,0,0,.6)'], [1.25, '#fff']]) {
+    for (const [w, color] of [[5, 'rgba(0,0,0,.6)'], [3, '#fff']]) {
       ctx.beginPath();
       ctx.moveTo(R - arm, R);
       ctx.lineTo(R + arm, R);
@@ -242,6 +289,7 @@ export class CornerEditor {
     });
     this.active = best;
     if (best >= 0) {
+      if (this._magnet) this._ensureSnap(); // if it's not built yet, stall here, not mid-drag
       this.overlay.setPointerCapture(e.pointerId);
       this._schedule(); // show the magnifier immediately
     }
@@ -249,7 +297,9 @@ export class CornerEditor {
 
   _move(e) {
     if (this.active < 0) return;
-    const [px, py] = this._toImage(e);
+    let [px, py] = this._toImage(e);
+    const snapped = this._snapPoint(px, py, e.pointerType);
+    if (snapped) [px, py] = snapped;
     const { width, height } = this.bitmap;
     this.corners[this.active] = [
       Math.min(width, Math.max(0, px)),

@@ -10,15 +10,17 @@ const els = {
   fileInput: $('file-input'),
   editor: $('editor'),
   sourceCanvas: $('source-canvas'),
-  resultCanvas: $('result-canvas'),
+  resultImage: $('result-image'),
   resultEmpty: $('result-empty'),
   straighten: $('straighten'),
   reset: $('reset'),
+  magnet: $('magnet'),
   newImage: $('new-image'),
   format: $('format'),
   quality: $('quality'),
   qualityValue: $('quality-value'),
   qualityRow: $('quality-row'),
+  lossless: $('lossless'),
   info: $('info'),
   download: $('download'),
   status: $('status'),
@@ -27,12 +29,16 @@ const els = {
 
 const editor = new CornerEditor(els.sourceCanvas);
 // Keep the result preview fitted (aspect-exact) as the layout changes.
-new ResizeObserver(() => !els.resultCanvas.hidden && fitCanvas(els.resultCanvas))
-  .observe(els.resultCanvas.parentElement);
+new ResizeObserver(() => !els.resultImage.hidden && fitCanvas(els.resultImage))
+  .observe(els.resultImage.parentElement);
 
 const worker = new Worker(new URL('./warp.worker.js', import.meta.url), { type: 'module' });
 
 let bitmap = null;
+// Lossless warp result. Every encode reads from this; the preview <img> shows
+// the encoded output file itself (JPEG artifacts included).
+let master = null;
+let previewUrl = null; // object URL currently shown in the preview
 let fileName = 'image';
 let requestId = 0;
 let currentExport = null; // { blob, ext } for the current format/quality
@@ -96,6 +102,26 @@ window.addEventListener('paste', (e) => {
 
 els.reset.addEventListener('click', () => editor.reset());
 
+// Magnet toggle (snap corners to the document). Remembered per browser; storage may be blocked.
+const MAGNET_KEY = 'perspective-crop:magnet';
+function setMagnet(on) {
+  editor.magnet = on;
+  els.magnet.setAttribute('aria-pressed', String(on));
+  els.magnet.title = on
+    ? 'Magnet on: corners snap to the document. Click to turn off.'
+    : 'Magnet off: corners move freely. Click to turn on.';
+}
+try {
+  setMagnet(localStorage.getItem(MAGNET_KEY) !== 'off');
+} catch {
+  setMagnet(true);
+}
+els.magnet.addEventListener('click', () => {
+  const on = !editor.magnet;
+  setMagnet(on);
+  try { localStorage.setItem(MAGNET_KEY, on ? 'on' : 'off'); } catch { /* not persisted */ }
+});
+
 els.straighten.addEventListener('click', () => {
   if (!bitmap) return;
   if (!isValidQuad(editor.corners)) {
@@ -127,17 +153,15 @@ worker.onmessage = (e) => {
   els.straighten.disabled = false;
   if (m.error) return setStatus(m.error);
 
-  const c = els.resultCanvas;
-  c.width = m.dw;
-  c.height = m.dh;
-  c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(m.pixels), m.dw, m.dh), 0, 0);
-  c.hidden = false;
-  fitCanvas(c);
+  master = document.createElement('canvas');
+  master.width = m.dw;
+  master.height = m.dh;
+  master.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(m.pixels), m.dw, m.dh), 0, 0);
+
   // Stacked layout: the result is below the fold, so bring it into view.
   if (matchMedia('(max-width: 800px)').matches) {
-    c.closest('.pane').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    els.resultImage.closest('.pane').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  els.resultEmpty.hidden = true;
   els.download.disabled = false;
   setStatus(`Straightened · ${m.dw} × ${m.dh} px. Ready to download.`);
   encode();
@@ -149,11 +173,15 @@ worker.onerror = () => {
 };
 
 function clearResult() {
-  els.resultCanvas.hidden = true;
+  els.resultImage.hidden = true;
+  els.resultImage.removeAttribute('src');
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
   els.resultEmpty.hidden = false;
   els.download.disabled = true;
   els.info.textContent = '';
   currentExport = null;
+  master = null;
   // Invalidate anything still in flight so it can't land on the new image.
   requestId++;
   encodeToken++;
@@ -167,18 +195,19 @@ function syncQualityUi() {
   // Keep the slot (visibility, not display) so the layout doesn't shift.
   const isJpeg = els.format.value === 'jpeg';
   els.qualityRow.classList.toggle('is-off', !isJpeg);
+  els.lossless.classList.toggle('is-off', isJpeg);
   els.quality.disabled = !isJpeg;
   els.qualityValue.textContent = els.quality.value;
 }
 
 /** Encode the result; resolves to { blob, ext }, or null if superseded or failed. */
 async function encode() {
-  if (els.resultCanvas.hidden) return null;
+  if (!master) return null;
   const token = ++encodeToken;
   const format = els.format.value;
   let blob;
   try {
-    blob = await encodeCanvas(els.resultCanvas, format, Number(els.quality.value) / 100);
+    blob = await encodeCanvas(master, format, Number(els.quality.value) / 100);
   } catch {
     if (token === encodeToken) setStatus('Could not encode the image.');
     return null;
@@ -187,8 +216,26 @@ async function encode() {
   const { ext } = FORMATS[format];
   currentExport = { blob, ext }; // keep blob and extension together
   els.info.textContent = `${ext.toUpperCase()} · ${formatBytes(blob.size)}`;
+  showEncoded(blob);
   return currentExport;
 }
+
+/**
+ * Show the output file itself in the preview, so it matches the download and
+ * long-press (mobile) / right-click offers the browser's Save and Copy image.
+ */
+function showEncoded(blob) {
+  // Revoking only blocks new loads; the image already on screen stays until the new one lands.
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(blob);
+  els.resultImage.src = previewUrl;
+}
+
+els.resultImage.addEventListener('load', () => {
+  els.resultImage.hidden = false;
+  els.resultEmpty.hidden = true;
+  fitCanvas(els.resultImage);
+});
 
 function scheduleEncode() {
   syncQualityUi();

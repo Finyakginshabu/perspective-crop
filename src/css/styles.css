@@ -65,7 +65,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 .dropzone-label strong { font-size: 18px; }
 .dropzone-icon { color: var(--muted); margin-bottom: 4px; }
 .dropzone-label span { color: var(--muted); }
-.dropzone:hover { background: color-mix(in srgb, var(--panel) 92%, #fff); }
+.dropzone:hover { background: color-mix(in srgb, var(--panel) 85%, #fff); }
 
 body.dragging .drop-overlay { display: flex; }
 .drop-overlay {
@@ -79,6 +79,13 @@ body.dragging .drop-overlay { display: flex; }
 /* Editor */
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .toolbar .primary { margin-left: auto; }
+/* Square icon toggle (magnet), same height as the text buttons. Icon is accent while on. */
+.icon-btn {
+  display: inline-grid; place-items: center;
+  padding: 0; width: calc(1.5em + 16px); height: calc(1.5em + 16px);
+  color: var(--muted);
+}
+.icon-btn[aria-pressed="true"] { color: var(--accent); }
 
 button, select {
   font: inherit; color: inherit;
@@ -128,6 +135,7 @@ select:focus, select:focus-visible {
 /* 44px minimum tap target on touch devices. */
 @media (pointer: coarse) {
   button, select { min-height: 44px; }
+  .icon-btn { width: 44px; height: 44px; }
 }
 button:disabled { opacity: .5; cursor: default; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -163,9 +171,9 @@ button:disabled { opacity: .5; cursor: default; }
 /* max-width: none — the overlay is intentionally wider than the image (handles
    draw past the edges); the generic canvas guard below must not squeeze it. */
 .corner-overlay { position: absolute; z-index: 1; max-width: none; border-radius: 0; touch-action: pan-x pan-y pinch-zoom; }
-/* Preview canvases are sized in JS (fit.js) to keep their exact aspect ratio. */
-canvas { display: block; flex: none; max-width: 100%; border-radius: var(--radius-inner); } /* max-width: guard before first fit */
-#result-canvas {
+/* Previews are sized in JS (fit.js) to keep their exact aspect ratio. */
+canvas, #result-image { display: block; flex: none; max-width: 100%; border-radius: var(--radius-inner); } /* max-width: guard before first fit */
+#result-image {
   background: repeating-conic-gradient(#8882 0 25%, transparent 0 50%) 0 0 / 16px 16px;
 }
 .empty { margin: 0; text-align: center; color: var(--muted); }
@@ -185,8 +193,12 @@ canvas { display: block; flex: none; max-width: 100%; border-radius: var(--radiu
 }
 .format-toggle svg { color: var(--muted); }
 .format-toggle:hover svg { color: var(--fg); }
+/* Quality slider (JPG) and "Lossless" (PNG) stacked in one cell, so switching never shifts the bar. */
+.quality-slot { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; }
+.quality-slot > * { grid-area: 1 / 1; }
 .export .quality input[type="range"] { flex: 1; min-width: 60px; accent-color: var(--accent); }
-.export .quality.is-off { visibility: hidden; }
+.export .lossless { color: var(--muted); white-space: nowrap; }
+.export .is-off { visibility: hidden; }
 .export output { width: 3ch; text-align: right; color: var(--fg); font-variant-numeric: tabular-nums; }
 .info { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
@@ -231,8 +243,8 @@ canvas { display: block; flex: none; max-width: 100%; border-radius: var(--radiu
   .pane { padding: 10px; }
   .dropzone-label { min-height: 220px; padding: 20px 16px; }
 
-  /* Two secondary buttons side by side, Straighten full-width below. */
-  .toolbar { display: grid; grid-template-columns: 1fr 1fr; }
+  /* Two secondary buttons + the magnet toggle on one row, Straighten full-width below. */
+  .toolbar { display: grid; grid-template-columns: 1fr 1fr auto; }
   .toolbar .primary { grid-column: 1 / -1; margin-left: 0; }
   .wide-only { display: none; }
   .narrow-only { display: inline; }

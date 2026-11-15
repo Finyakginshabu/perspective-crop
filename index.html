@@ -36,6 +36,14 @@
       <div class="toolbar">
         <button id="new-image" type="button"><span class="wide-only">Choose another</span><span class="narrow-only">New</span> image</button>
         <button id="reset" type="button">Reset corners</button>
+        <!-- Toggle; state is in aria-pressed. -->
+        <button id="magnet" type="button" class="icon-btn" aria-pressed="true" aria-label="Magnet">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none"
+               stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 4h4v7a3 3 0 0 0 6 0V4h4v7a7 7 0 0 1-14 0z"/>
+            <path d="M5 8h4M15 8h4"/>
+          </svg>
+        </button>
         <button id="straighten" type="button" class="primary">Straighten</button>
       </div>
 
@@ -52,7 +60,8 @@
           <h2>2. Result</h2>
           <div class="stage">
             <p id="result-empty" class="empty">Click <b>Straighten</b> to preview.</p>
-            <canvas id="result-canvas" hidden></canvas>
+            <!-- An <img> (not a canvas) so long-press / right-click offers Save and Copy. -->
+            <img id="result-image" alt="Straightened result" hidden>
           </div>
 
           <div class="export">
@@ -67,10 +76,14 @@
                 </svg>
               </button>
             </label>
-            <label id="quality-row" class="quality">Quality
-              <input id="quality" type="range" min="10" max="100" value="92">
-              <output id="quality-value">92</output>
-            </label>
+            <!-- Both share one grid cell; only the one for the current format is visible. -->
+            <div class="quality-slot">
+              <label id="quality-row" class="quality">Quality
+                <input id="quality" type="range" min="10" max="100" value="85">
+                <output id="quality-value">85</output>
+              </label>
+              <span id="lossless" class="lossless is-off">Lossless</span>
+            </div>
             <span id="info" class="info"></span>
             <button id="download" type="button" class="primary" disabled>Download</button>
           </div>
