@@ -10,7 +10,7 @@ Straighten skewed photos of documents, receipts, whiteboards and screens, entire
 - **Place four corners** on the document. A magnifier shows full-resolution pixels around the corner you're dragging, so you can place it precisely.
 - **Magnet:** a dragged corner snaps onto a nearby corner in the photo, such as the paper's corner. Toggle it with the magnet button next to **Reset corners**.
 - **Straighten** with a perspective (homography) transform. Output size follows the document's proportions.
-- **Export** as **JPG** (adjustable quality, with live file size) or lossless **PNG**. The result preview shows the exact output file; long-press or right-click it to save or copy.
+- **Export** as **JPG** (adjustable quality, with live file size) or lossless **PNG**. On supported phones, **Download** opens the system share sheet so you can save the image. The result preview also shows the exact output file; long-press or right-click it to save or copy.
 - **Private:** all processing happens on your device. No server, no tracking.
 - **Works on desktop and mobile**, no install and no build step.
 

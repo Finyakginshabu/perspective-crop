@@ -60,6 +60,7 @@ let requestId = 0;
 let currentExport = null; // { blob, ext } for the current format/quality
 let encodeToken = 0; // lets a newer encode (or clearResult) discard older ones
 let encodeTimer = 0;
+let scrollToResultOnLoad = false;
 
 // Messages go in the editor card, or in the drop zone before an image is loaded.
 const setStatus = (msg) => {
@@ -174,11 +175,8 @@ worker.onmessage = (e) => {
   master.height = m.dh;
   master.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(m.pixels), m.dw, m.dh), 0, 0);
 
-  // Stacked layout: the result is below the fold, so bring it into view.
-  if (matchMedia('(max-width: 800px)').matches) {
-    els.resultImage.closest('.pane').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-  els.download.disabled = false;
+  // Wait until the preview is visible and fitted before scrolling to its pane.
+  scrollToResultOnLoad = matchMedia('(max-width: 800px)').matches;
   setStatus(`Straightened · ${m.dw} × ${m.dh} px. Ready to download.`);
   encode();
 };
@@ -198,6 +196,7 @@ function clearResult() {
   els.info.textContent = '';
   currentExport = null;
   master = null;
+  scrollToResultOnLoad = false;
   // Invalidate anything still in flight so it can't land on the new image.
   requestId++;
   encodeToken++;
@@ -232,6 +231,7 @@ async function encode() {
   const { ext } = FORMATS[format];
   currentExport = { blob, ext }; // keep blob and extension together
   els.info.textContent = `${ext.toUpperCase()} · ${formatBytes(blob.size)}`;
+  els.download.disabled = false;
   showEncoded(blob);
   return currentExport;
 }
@@ -251,11 +251,19 @@ els.resultImage.addEventListener('load', () => {
   els.resultImage.hidden = false;
   els.resultEmpty.hidden = true;
   fitCanvas(els.resultImage);
+  if (scrollToResultOnLoad) {
+    scrollToResultOnLoad = false;
+    requestAnimationFrame(() => {
+      els.resultImage.closest('.pane').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
 });
 
 function scheduleEncode() {
   syncQualityUi();
+  encodeToken++;
   currentExport = null; // stale until the re-encode lands
+  els.download.disabled = true;
   clearTimeout(encodeTimer);
   encodeTimer = setTimeout(encode, 150); // debounce slider drags
 }
@@ -268,10 +276,23 @@ els.format.addEventListener('click', () => {
 });
 els.quality.addEventListener('input', scheduleEncode);
 
-els.download.addEventListener('click', async () => {
+els.download.addEventListener('click', () => {
   clearTimeout(encodeTimer); // don't wait out the debounce
-  const exp = currentExport ?? (await encode());
-  if (exp) downloadBlob(exp.blob, `${fileName}-straightened.${exp.ext}`);
+  const exp = currentExport;
+  if (!exp) return;
+  const filename = `${fileName}-67.${exp.ext}`;
+
+  if (touchInput.matches && navigator.share && navigator.canShare) {
+    const file = new File([exp.blob], filename, { type: exp.blob.type });
+    if (navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: filename }).catch((error) => {
+        if (error.name !== 'AbortError') setStatus('Could not share the image.');
+      });
+      return;
+    }
+  }
+
+  downloadBlob(exp.blob, filename);
 });
 
 syncQualityUi();
