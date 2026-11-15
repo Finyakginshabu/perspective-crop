@@ -1,5 +1,5 @@
 import { CornerEditor } from './cornerEditor.js';
-import { suggestedSize } from './homography.js';
+import { suggestedSize, isValidQuad } from './homography.js';
 import { encodeCanvas, downloadBlob, formatBytes, FORMATS } from './exporter.js';
 import { fitCanvas } from './fit.js';
 
@@ -35,7 +35,8 @@ const worker = new Worker(new URL('./warp.worker.js', import.meta.url), { type: 
 let bitmap = null;
 let fileName = 'image';
 let requestId = 0;
-let currentBlob = null;
+let currentExport = null; // { blob, ext } for the current format/quality
+let encodeToken = 0; // lets a newer encode (or clearResult) discard older ones
 let encodeTimer = 0;
 
 // Messages go in the editor card, or in the drop zone before an image is loaded.
@@ -97,6 +98,10 @@ els.reset.addEventListener('click', () => editor.reset());
 
 els.straighten.addEventListener('click', () => {
   if (!bitmap) return;
+  if (!isValidQuad(editor.corners)) {
+    setStatus("The corners must form a four-sided shape. Don't let the edges cross.");
+    return;
+  }
   const [dw, dh] = suggestedSize(editor.corners);
 
   // Read pixels from a clean canvas so the overlay is never baked in.
@@ -148,7 +153,12 @@ function clearResult() {
   els.resultEmpty.hidden = false;
   els.download.disabled = true;
   els.info.textContent = '';
-  currentBlob = null;
+  currentExport = null;
+  // Invalidate anything still in flight so it can't land on the new image.
+  requestId++;
+  encodeToken++;
+  clearTimeout(encodeTimer);
+  els.straighten.disabled = false;
 }
 
 // ---------- Export (JPG / PNG, adjustable quality) ----------
@@ -161,16 +171,28 @@ function syncQualityUi() {
   els.qualityValue.textContent = els.quality.value;
 }
 
+/** Encode the result; resolves to { blob, ext }, or null if superseded or failed. */
 async function encode() {
-  if (els.resultCanvas.hidden) return;
+  if (els.resultCanvas.hidden) return null;
+  const token = ++encodeToken;
   const format = els.format.value;
-  const blob = await encodeCanvas(els.resultCanvas, format, Number(els.quality.value) / 100);
-  currentBlob = blob;
-  els.info.textContent = `${FORMATS[format].ext.toUpperCase()} · ${formatBytes(blob.size)}`;
+  let blob;
+  try {
+    blob = await encodeCanvas(els.resultCanvas, format, Number(els.quality.value) / 100);
+  } catch {
+    if (token === encodeToken) setStatus('Could not encode the image.');
+    return null;
+  }
+  if (token !== encodeToken) return null; // a newer encode (or a new image) took over
+  const { ext } = FORMATS[format];
+  currentExport = { blob, ext }; // keep blob and extension together
+  els.info.textContent = `${ext.toUpperCase()} · ${formatBytes(blob.size)}`;
+  return currentExport;
 }
 
 function scheduleEncode() {
   syncQualityUi();
+  currentExport = null; // stale until the re-encode lands
   clearTimeout(encodeTimer);
   encodeTimer = setTimeout(encode, 150); // debounce slider drags
 }
@@ -183,10 +205,10 @@ els.format.addEventListener('click', () => {
 });
 els.quality.addEventListener('input', scheduleEncode);
 
-els.download.addEventListener('click', () => {
-  if (!currentBlob) return;
-  const ext = FORMATS[els.format.value].ext;
-  downloadBlob(currentBlob, `${fileName}-straightened.${ext}`);
+els.download.addEventListener('click', async () => {
+  clearTimeout(encodeTimer); // don't wait out the debounce
+  const exp = currentExport ?? (await encode());
+  if (exp) downloadBlob(exp.blob, `${fileName}-straightened.${exp.ext}`);
 });
 
 syncQualityUi();

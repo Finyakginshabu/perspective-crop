@@ -78,12 +78,21 @@ export function warpPerspective(src, sw, sh, corners, dw, dh) {
   const H = computeHomography(rect, corners); // output → source
   if (!H) return null;
 
+  const [h0, h1, h2, h3, h4, h5, h6, h7, h8] = H;
   const out = new Uint8ClampedArray(dw * dh * 4);
   for (let y = 0; y < dh; y++) {
+    const py = y + 0.5;
     for (let x = 0; x < dw; x++) {
-      // Sample at pixel centres.
-      const [sx, sy] = applyHomography(H, x + 0.5, y + 0.5).map((v) => v - 0.5);
-      if (!(sx >= 0 && sy >= 0 && sx <= sw - 1 && sy <= sh - 1)) continue;
+      // Sample at pixel centres (applyHomography inlined: this loop is hot).
+      const px = x + 0.5;
+      const iw = 1 / (h6 * px + h7 * py + h8);
+      let sx = (h0 * px + h1 * py + h2) * iw - 0.5;
+      let sy = (h3 * px + h4 * py + h5) * iw - 0.5;
+      // The source covers [-0.5, size - 0.5] in centre coordinates. Inside it,
+      // clamp to the outermost pixel centres so edges don't come out transparent.
+      if (!(sx >= -0.5 && sy >= -0.5 && sx <= sw - 0.5 && sy <= sh - 0.5)) continue;
+      sx = Math.min(Math.max(sx, 0), sw - 1);
+      sy = Math.min(Math.max(sy, 0), sh - 1);
 
       const x0 = Math.floor(sx);
       const y0 = Math.floor(sy);
@@ -104,6 +113,31 @@ export function warpPerspective(src, sw, sh, corners, dw, dh) {
     }
   }
   return out;
+}
+
+/**
+ * Whether four corners (TL, TR, BR, BL, y pointing down) form a usable,
+ * convex, non-mirrored quad. Rejects crossed ("bow-tie"), concave, mirrored,
+ * coincident and nearly collinear corners, which would warp into garbage.
+ * @param {number[][]} corners four [x, y] points
+ * @returns {boolean}
+ */
+export function isValidQuad(corners) {
+  if (corners?.length !== 4) return false;
+  for (let i = 0; i < 4; i++) {
+    const [ax, ay] = corners[i];
+    const [bx, by] = corners[(i + 1) % 4];
+    const [cx, cy] = corners[(i + 2) % 4];
+    const e1x = bx - ax, e1y = by - ay;
+    const e2x = cx - bx, e2y = cy - by;
+    const l1 = Math.hypot(e1x, e1y);
+    const l2 = Math.hypot(e2x, e2y);
+    if (!(l1 >= 1 && l2 >= 1)) return false;
+    // Sine of the turn at this corner: positive = clockwise on screen.
+    // Requiring > 0.02 (about 1.1°) everywhere also rules out near-collinear corners.
+    if (!((e1x * e2y - e1y * e2x) / (l1 * l2) > 0.02)) return false;
+  }
+  return true;
 }
 
 /**
