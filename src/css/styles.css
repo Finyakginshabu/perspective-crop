@@ -86,6 +86,7 @@ body.dragging .drop-overlay { display: flex; }
   color: var(--muted);
 }
 .icon-btn[aria-pressed="true"] { color: var(--accent); }
+.icon-btn[aria-pressed="false"] .magnet-spark { display: none; } /* spark only while on */
 
 button, select {
   font: inherit; color: inherit;
@@ -96,11 +97,19 @@ button:not(.primary), select {
   border-color: var(--edge-hi) var(--edge-lo);
   box-shadow: var(--glow), var(--shadow-btn);
 }
+button:not(.primary) {
+  --tap-base: var(--panel);
+  --tap-highlight: color-mix(in srgb, var(--panel) 88%, #fff);
+}
 /* Hover only lightens the fill, so the bevel stays intact. */
-button:not(.primary):hover:not(:disabled), select:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--panel) 88%, #fff);
+@media (hover: hover) {
+  button:not(.primary):hover:not(:disabled), select:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--panel) 88%, #fff);
+  }
 }
 button.primary {
+  --tap-base: var(--accent);
+  --tap-highlight: color-mix(in srgb, var(--accent) 88%, #000);
   background: var(--accent);
   border-color:
     color-mix(in srgb, var(--accent) 55%, #fff)   /* top & bottom: brighter */
@@ -110,7 +119,9 @@ button.primary {
   font-weight: 600;
 }
 /* Darker orange on hover, darker again while pressed (borders + glow stay). */
-button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, #000); }
+@media (hover: hover) {
+  button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, #000); }
+}
 button.primary:active:not(:disabled) { background: color-mix(in srgb, var(--accent) 76%, #000); }
 /* Disabled: flat dark orange — no glow, no bevel, no fade. */
 button.primary:disabled {
@@ -121,6 +132,14 @@ button.primary:disabled {
   color: rgb(0 0 0 / .6);
 }
 button { transition: background-color .12s, border-color .12s; }
+@keyframes tap-pop {
+  0%, 100% { transform: scale(1); background-color: var(--tap-base); }
+  35% { transform: scale(1.08); background-color: var(--tap-highlight); }
+}
+@media (hover: none) and (pointer: coarse) {
+  button.tap-pop { animation: tap-pop .3s ease-out; }
+  .format-toggle.tap-pop svg { animation: tap-pop-icon .3s ease-out; }
+}
 /* Keyboard focus ring sits clear of the (same-coloured) button. */
 button:focus-visible, select:focus-visible { outline-offset: 3px; }
 /* Neutral focus ring on navy controls; orange is reserved for primary buttons. */
@@ -192,7 +211,13 @@ canvas, #result-image { display: block; flex: none; max-width: 100%; border-radi
   min-width: 5.5em; font-weight: 600;
 }
 .format-toggle svg { color: var(--muted); }
-.format-toggle:hover svg { color: var(--fg); }
+@media (hover: hover) {
+  .format-toggle:hover svg { color: var(--fg); }
+}
+@keyframes tap-pop-icon {
+  0%, 100% { color: var(--muted); }
+  35% { color: var(--fg); }
+}
 /* Quality slider (JPG) and "Lossless" (PNG) stacked in one cell, so switching never shifts the bar. */
 .quality-slot { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; }
 .quality-slot > * { grid-area: 1 / 1; }

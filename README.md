@@ -52,8 +52,7 @@ src/
   js/
     main.js             UI wiring: loading, straighten, export
     cornerEditor.js     corner handles, overlay, magnifier and magnet
-    snap.js             pure math: corner detection for the magnet (no DOM)
-    homography.js       pure math: homography + bilinear warp (no DOM)
+    snap.js             pure math: corner detection for the magnet (no DOM)    homography.js       pure math: homography + bilinear warp (no DOM)
     warp.worker.js      runs the warp off the main thread
     exporter.js         JPG/PNG encoding and download
     fit.js              aspect-exact sizing of the previews
@@ -65,8 +64,10 @@ tests/                  node:test unit tests for the math (warp and magnet)
 
 The four corners define a quadrilateral in the source photo. Solving an 8×8 linear system gives the homography that maps the output rectangle onto that quadrilateral. For every output pixel, the matching source position is looked up (inverse mapping) and sampled bilinearly, so there are no holes or jagged edges. The warp runs in a Web Worker to keep the page responsive on large photos.
 
-The magnet computes a corner-strength map of the preview once per image: the smaller eigenvalue of the gradient structure tensor (Shi–Tomasi), which is high only where two edges meet. While you drag, it takes the strongest corner within reach of the pointer and refines it to sub-pixel accuracy by finding the point that the surrounding gradient lines pass through.
+While you drag, the magnet computes a corner-strength map of a small patch of the preview around the pointer: the smaller eigenvalue of the gradient structure tensor (Shi–Tomasi), which is high only where two edges meet. Each check takes well under a millisecond, so nothing has to be prepared when an image loads. It takes the strongest corner within reach and refines it to sub-pixel accuracy by finding the point that the surrounding gradient lines pass through.
 
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+The upload and swap icons are [Material Symbols](https://fonts.google.com/icons) by Google, used under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). They are inlined as SVG, so the page makes no requests to Google. The magnet icon is original.

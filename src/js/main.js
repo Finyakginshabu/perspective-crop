@@ -27,6 +27,22 @@ const els = {
   dropStatus: $('drop-status'),
 };
 
+const touchInput = matchMedia('(hover: none) and (pointer: coarse)');
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+document.addEventListener('click', (event) => {
+  if (!touchInput.matches || reducedMotion.matches || !(event.target instanceof Element)) return;
+  const button = event.target.closest('button');
+  if (!button || button.disabled) return;
+  button.classList.remove('tap-pop');
+  void button.offsetWidth;
+  button.classList.add('tap-pop');
+});
+document.addEventListener('animationend', (event) => {
+  if (event.target instanceof HTMLButtonElement && event.animationName === 'tap-pop') {
+    event.target.classList.remove('tap-pop');
+  }
+});
+
 const editor = new CornerEditor(els.sourceCanvas);
 // Keep the result preview fitted (aspect-exact) as the layout changes.
 new ResizeObserver(() => !els.resultImage.hidden && fitCanvas(els.resultImage))

@@ -18,10 +18,9 @@
     <!-- Shown until an image is loaded -->
     <section id="dropzone" class="dropzone">
       <label for="file-input" class="dropzone-label">
-        <svg class="dropzone-icon" viewBox="0 0 24 24" width="40" height="40" aria-hidden="true" fill="none"
-             stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/>
-          <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>
+        <!-- "upload" from Material Symbols (Google, Apache License 2.0) -->
+        <svg class="dropzone-icon" viewBox="0 -960 960 960" width="40" height="40" aria-hidden="true" fill="currentColor">
+          <path d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
         </svg>
         <strong class="for-pointer">Drop an image here</strong>
         <span class="for-pointer">or click to choose a file · you can also paste from the clipboard</span>
@@ -38,10 +37,15 @@
         <button id="reset" type="button">Reset corners</button>
         <!-- Toggle; state is in aria-pressed. -->
         <button id="magnet" type="button" class="icon-btn" aria-pressed="true" aria-label="Magnet">
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none"
-               stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 4h4v7a3 3 0 0 0 6 0V4h4v7a7 7 0 0 1-14 0z"/>
-            <path d="M5 8h4M15 8h4"/>
+          <!-- Custom tilted horseshoe magnet (Material Symbols has none). The spark
+               shows only while the magnet is on (see .magnet-spark in styles.css). -->
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <g transform="translate(1.27 -1.27) rotate(45 12 12)" fill="currentColor">
+              <path d="M5 15V11a7 7 0 0 1 14 0v4h-4v-4a3 3 0 0 0-6 0v4z"/>
+              <path d="M5 16.5h4v3H5zM15 16.5h4v3h-4z"/>
+            </g>
+            <path class="magnet-spark" d="M3.2 19.3 6.2 16.3v3l3-3" fill="none"
+                  stroke="currentColor" stroke-width="1.25" stroke-linejoin="miter"/>
           </svg>
         </button>
         <button id="straighten" type="button" class="primary">Straighten</button>
@@ -70,9 +74,9 @@
               <button id="format" type="button" class="format-toggle" value="jpeg"
                       title="Click to switch format">
                 <span class="format-label">JPG</span>
-                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>
+                <!-- "swap_horiz" from Material Symbols (Google, Apache License 2.0) -->
+                <svg viewBox="0 -960 960 960" width="14" height="14" aria-hidden="true" fill="currentColor">
+                  <path d="M280-160 80-360l200-200 56 57-103 103h287v80H233l103 103-56 57Zm400-240-56-57 103-103H440v-80h287L624-743l56-57 200 200-200 200Z"/>
                 </svg>
               </button>
             </label>

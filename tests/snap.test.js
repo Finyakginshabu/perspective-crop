@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cornerStrength, findCorner } from '../src/js/snap.js';
+import { cornerStrength, findCorner, snapNear } from '../src/js/snap.js';
 
 /** w×h grey image (value bg) with a rectangle [x0, x1) × [y0, y1) of value fg. */
 function rectImage(w, h, [x0, y0, x1, y1], bg = 90, fg = 235) {
@@ -50,4 +50,16 @@ test('findCorner prefers a clear corner over a faint one nearby', () => {
   const hit = findCorner(cornerStrength(px, w, 80), 34, 35, 15);
   near(hit[0], 40, 1);
   near(hit[1], 40, 1);
+});
+
+test('snapNear (patch only) matches findCorner on the full map', () => {
+  const w = 160, h = 120;
+  const px = rectImage(w, h, [20, 30, 130, 100]);
+  const s = cornerStrength(px, w, h);
+  for (const [x, y] of [[24, 26], [127, 33], [133, 104], [17, 97], [75, 65], [3, 3], [157, 117]]) {
+    const a = snapNear(px, w, h, x, y, 10);
+    const b = findCorner(s, x, y, 10);
+    assert.equal(a === null, b === null, `at ${x},${y}`);
+    if (a) { near(a[0], b[0], 1e-9); near(a[1], b[1], 1e-9); }
+  }
 });

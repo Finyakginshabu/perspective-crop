@@ -4,8 +4,10 @@
  */
 
 const WINDOW_R = 2; // structure-tensor window radius (px): 5×5 box
-const MIN_STRENGTH = 1e-4; // absolute floor: ignores sensor noise and very faint corners
-const MIN_RATIO = 0.01; // …and anything under 1% of the image's strongest corner
+// Absolute floor: ignores sensor noise and faint corners (roughly under 8% contrast).
+// snapNear only sees a small patch, so this floor, not MIN_RATIO, does most of the filtering.
+const MIN_STRENGTH = 3e-4;
+const MIN_RATIO = 0.01; // …and anything under 1% of the strongest corner in the map
 // Score = strength × (1 − FALLOFF·(d/radius)²): the strongest corner in reach
 // wins, nearer ones get a mild edge. (Pure nearest-first lets noise specks win.)
 const FALLOFF = 0.75;
@@ -182,4 +184,40 @@ function isPeak(map, i, w, v) {
     }
   }
   return true;
+}
+
+// Patch margin beyond the search radius, so every candidate's strength, peak
+// test and refinement window only read pixels computed inside the patch.
+const PATCH_MARGIN = Math.max(WINDOW_R + 3, REFINE_R + REFINE_MAX_SHIFT + 1) + 2;
+
+/**
+ * findCorner without a precomputed map: computes corner strength only in a
+ * small patch around (x, y). Fast enough to run on every pointer move, so
+ * nothing has to be prepared when an image loads.
+ *
+ * @param {Uint8ClampedArray} rgba RGBA pixels of the whole image
+ * @param {number} w image width
+ * @param {number} h image height
+ * @param {number} x
+ * @param {number} y
+ * @param {number} radius search radius, px
+ * @returns {[number, number] | null}
+ */
+export function snapNear(rgba, w, h, x, y, radius) {
+  const m = Math.ceil(radius) + PATCH_MARGIN;
+  const x0 = Math.max(0, Math.floor(x) - m);
+  const y0 = Math.max(0, Math.floor(y) - m);
+  const x1 = Math.min(w, Math.floor(x) + m + 1);
+  const y1 = Math.min(h, Math.floor(y) + m + 1);
+  const pw = x1 - x0;
+  const ph = y1 - y0;
+  if (pw < 6 || ph < 6) return null;
+
+  const patch = new Uint8ClampedArray(pw * ph * 4);
+  for (let row = 0; row < ph; row++) {
+    const src = ((y0 + row) * w + x0) * 4;
+    patch.set(rgba.subarray(src, src + pw * 4), row * pw * 4);
+  }
+  const hit = findCorner(cornerStrength(patch, pw, ph), x - x0, y - y0, radius);
+  return hit && [hit[0] + x0, hit[1] + y0];
 }
